@@ -4,19 +4,40 @@ TSR is a deterministic scripting language designed for fine-grained execution go
 
 ---
 
+## Install
+
+### One-line install (requires Go 1.21+)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/sampbb1996-dot/tsr/main/dist/install.sh | bash
+```
+
+### Or install directly with Go
+
+```bash
+go install github.com/sampbb1996-dot/tsr/cmd/tsr@latest
+```
+
+Don't have Go? Get it at [go.dev/dl](https://go.dev/dl/) — it's free and takes about a minute.
+
+---
+
 ## Quick Start
 
-Requires [Go 1.21+](https://go.dev/dl/) installed on your machine.
+Once installed:
 
-**Step 1** — Download `tsr-lang.zip` from the website and unzip it
-
-**Step 2** — Open a terminal inside the unzipped folder
-
-**Step 3** — Run:
 ```bash
+tsr run examples/00_hello.tsr
+tsr run --trace examples/07_commit_write_ok.tsr
+```
+
+Or clone and build from source:
+
+```bash
+git clone https://github.com/sampbb1996-dot/tsr.git
+cd tsr
 go build -o tsr ./cmd/tsr
 ./tsr run examples/00_hello.tsr
-./tsr run --trace examples/07_commit_write_ok.tsr
 ```
 
 ---
