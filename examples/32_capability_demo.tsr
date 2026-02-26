@@ -1,0 +1,14 @@
+regime "CALM";
+capability file_write "logs/*";
+
+say("Capability demo — file_write restricted to logs/*");
+
+commit "write_log" {
+  write_file("logs/demo.txt", "capability check passed");
+}
+say("Success: logs/demo.txt written");
+
+commit "write_blocked" {
+  write_file("secret.txt", "this should fail");
+}
+say("This line should not appear");

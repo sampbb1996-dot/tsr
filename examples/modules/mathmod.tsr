@@ -1,0 +1,14 @@
+fn square(n) {
+  return n * n;
+}
+
+fn add(a, b) {
+  return a + b;
+}
+
+fn abs_val(n) {
+  if (n < 0) {
+    return n * -1;
+  }
+  return n;
+}

@@ -1,0 +1,7 @@
+import "modules/mathmod.tsr" as math;
+
+let result = math.square(7);
+say("7 squared = " + to_string(result));
+
+let sum = math.add(100, 200);
+say("100 + 200 = " + to_string(sum));

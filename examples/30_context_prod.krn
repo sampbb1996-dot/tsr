@@ -1,0 +1,10 @@
+context {
+  env: "prod"
+  risk: "low"
+  actor: "service:api"
+}
+budget auto
+
+say "Starting prod-context deployment"
+write_file "logs/deploy.txt" "deployment started"
+say "Log written (capability: logs/*)"

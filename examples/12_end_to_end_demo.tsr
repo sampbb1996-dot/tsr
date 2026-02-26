@@ -1,0 +1,31 @@
+regime "CALM";
+strain { max_branch: 10, max_loop: 10, max_call_depth: 20, max_commit: 5, max_nest: 10 };
+
+fn greet(name) {
+  return "Hello, " + name + "!";
+}
+
+fn sum_list(lst, size) {
+  let i = 0;
+  let total = 0;
+  while (i < size) {
+    total = total + lst[i];
+    i = i + 1;
+  }
+  return total;
+}
+
+say(greet("TSR"));
+
+let numbers = [1, 2, 3, 4, 5];
+let total = sum_list(numbers, 5);
+say("Sum of [1..5] = " + to_string(total));
+
+let data = {"version": "1.0", "name": "TSR Demo"};
+say("Version: " + data["version"]);
+
+commit "log-result" {
+  write_file("examples/demo_result.txt", "TSR end-to-end demo passed!\n");
+}
+
+say("Demo complete. Result written.");

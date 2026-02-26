@@ -1,0 +1,9 @@
+context {
+  env: "prod"
+  risk: "high"
+  actor: "service:billing"
+}
+budget auto
+
+say "High-risk context: should be READONLY"
+write_file "blocked.txt" "this should not execute"

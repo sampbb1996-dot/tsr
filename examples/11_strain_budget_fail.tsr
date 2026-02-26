@@ -1,0 +1,11 @@
+regime "CALM";
+strain { max_branch: 2, max_loop: 20, max_call_depth: 50, max_commit: 50, max_nest: 20 };
+
+say("Testing strain budget...");
+
+if (true) { say("branch 1"); }
+if (true) { say("branch 2"); }
+# This third if should exceed max_branch=2
+if (true) { say("branch 3 - should not print"); }
+
+say("This should not be reached.");

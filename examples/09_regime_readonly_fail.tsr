@@ -1,0 +1,10 @@
+regime "READONLY";
+
+say("In READONLY regime — writes are forbidden.");
+
+commit "attempt" {
+  # Even inside commit, writes are forbidden in READONLY
+  write_file("examples/should_not_exist.txt", "forbidden");
+}
+
+say("This line should not be reached.");

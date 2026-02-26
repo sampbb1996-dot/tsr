@@ -1,0 +1,10 @@
+regime "CALM";
+
+say("Writing file inside commit...");
+
+commit "write-test" {
+  write_file("examples/test_output.txt", "Hello from TSR!\n");
+}
+
+say("File written successfully.");
+say("Content: " + read_file("examples/test_output.txt"));

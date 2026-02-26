@@ -1,0 +1,11 @@
+regime "CALM";
+strain { max_commit: 5, max_branch: 5, max_loop: 5, max_call_depth: 50, max_nest: 10 };
+
+say("Fetching https://example.com inside commit...");
+
+commit "fetch-example" {
+  let page = http_get("https://example.com", 10000, 50000);
+  say("Fetched " + to_string(len(page)) + " bytes");
+}
+
+say("Done.");

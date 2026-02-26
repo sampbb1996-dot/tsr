@@ -1,0 +1,13 @@
+let x = 10;
+let y = 3;
+let sum = x + y;
+let diff = x - y;
+let prod = x * y;
+let quot = x / y;
+
+say("x = " + to_string(x));
+say("y = " + to_string(y));
+say("x + y = " + to_string(sum));
+say("x - y = " + to_string(diff));
+say("x * y = " + to_string(prod));
+say("x / y = " + to_string(quot));

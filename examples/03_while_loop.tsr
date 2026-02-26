@@ -1,0 +1,13 @@
+let i = 0;
+while (i < 5) {
+  say("i = " + to_string(i));
+  i = i + 1;
+}
+
+# Count down
+let n = 3;
+while (n > 0) {
+  say("countdown: " + to_string(n));
+  n = n - 1;
+}
+say("Liftoff!");

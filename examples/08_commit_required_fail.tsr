@@ -1,0 +1,6 @@
+regime "CALM";
+
+say("Attempting write_file without commit...");
+# This should fail: write_file requires commit in CALM regime
+write_file("examples/should_not_exist.txt", "bad");
+say("This line should not be reached.");

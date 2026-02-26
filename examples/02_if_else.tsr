@@ -1,0 +1,20 @@
+let score = 85;
+
+if (score >= 90) {
+  say("Grade: A");
+} else {
+  if (score >= 80) {
+    say("Grade: B");
+  } else {
+    if (score >= 70) {
+      say("Grade: C");
+    } else {
+      say("Grade: F");
+    }
+  }
+}
+
+let x = 42;
+if (x == 42) {
+  say("x is the answer");
+}

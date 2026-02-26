@@ -1,0 +1,7 @@
+mode "CALM"
+budget { max_branch: 0, max_loop: 20, max_call_depth: 50, max_commit: 50, max_nest: 20 }
+# This if will exceed max_branch=0 at runtime
+if true {
+  say "inside if - should fail before here"
+}
+say "after if - should not be reached"

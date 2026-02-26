@@ -1,0 +1,6 @@
+mode "READONLY"
+budget auto
+# This http_get will be emitted without a commit block in READONLY mode
+# Running the compiled TSR will fail because http_get is forbidden in READONLY
+http_get "https://example.com" -> page
+say page

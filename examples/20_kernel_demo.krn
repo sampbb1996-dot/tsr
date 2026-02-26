@@ -1,0 +1,12 @@
+mode "CALM"
+budget auto
+# Read local config
+read_file "examples/config.json" -> config_raw
+say config_raw
+# Fetch a remote page
+http_get "https://example.com" -> page
+say "Fetched page length:"
+say to_string(len(page))
+# Write output file
+write_file "examples/kernel_output.txt" "KERNEL demo ran successfully"
+say "KERNEL demo complete"

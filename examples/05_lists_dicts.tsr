@@ -1,0 +1,16 @@
+let fruits = ["apple", "banana", "cherry"];
+say("First fruit: " + fruits[0]);
+say("List length: " + to_string(len(fruits)));
+
+let config = {"host": "localhost", "port": "8080", "debug": "true"};
+say("Host: " + config["host"]);
+say("Port: " + config["port"]);
+
+let numbers = [10, 20, 30, 40, 50];
+let i = 0;
+let total = 0;
+while (i < len(numbers)) {
+  total = total + numbers[i];
+  i = i + 1;
+}
+say("Sum: " + to_string(total));
