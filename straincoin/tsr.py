@@ -10,6 +10,13 @@ Regimes
 ───────
   CALM     — irreversible actions allowed inside commit()
   READONLY — all irreversible actions blocked, commit() raises TSRBlocked
+
+Runtime guard
+─────────────
+  _tsr_ctx.active is a thread-local flag set to True only while
+  TSR.commit() is executing execute_fn(). Every private mutation method
+  in BalanceManager checks this flag and raises RuntimeError if False.
+  This makes bypass structurally impossible at runtime.
 """
 
 import threading
@@ -17,10 +24,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# ── Thread-local execution context ────────────────────────────────────────────
+# Set to True only while TSR.commit() is executing execute_fn().
+# BalanceManager._private methods check this flag — any call outside
+# TSR.commit() raises RuntimeError("TSR_BYPASS_DETECTED") immediately.
+_tsr_ctx = threading.local()
+
 
 class TSRBlocked(Exception):
     """
-    Raised by TSR.commit() when an action is blocked.
+    Raised by TSR.commit() when an action fails validation.
 
     Attributes
     ──────────
@@ -42,8 +55,9 @@ class TSR:
         self._lock   = threading.Lock()
         self._regime = "CALM"
         self._audit: list[dict] = []
-        # Injected by app.py — optional reference to BalanceManager
-        # Used by validate() to check available balance before commit.
+        # Injected by app.py after engine init:
+        #   dash_module.tsr.balance_manager = balances
+        # Enables validate() to check available balance before any commit.
         self.balance_manager = None
 
     # ── Regime control ────────────────────────────────────────────────────
@@ -59,17 +73,19 @@ class TSR:
         with self._lock:
             return self._regime
 
-    # ── Validation ────────────────────────────────────────────────────────
+    # ── Validation — single source of truth ──────────────────────────────
 
     def validate(self, action: dict) -> tuple[bool, str]:
         """
-        Validate an action before execution.
+        Validate an action before execution. This is the ONLY place
+        where action constraints are checked — do not duplicate elsewhere.
 
         action = {
-            "type":        "trade" | "withdraw" | "deposit" | "credit" | "admin_credit",
-            "user_id":     str,
-            "amount":      float,
-            "meta":        dict  (optional — e.g. side, min_order_size, fee_rate)
+            "type":    "trade" | "withdraw" | "deposit_credit" |
+                       "restore" | "admin_credit",
+            "user_id": str,
+            "amount":  float,
+            "meta":    dict  (optional)
         }
 
         Returns (True, "") on pass, (False, reason) on failure.
@@ -82,7 +98,7 @@ class TSR:
         amount      = action.get("amount", 0)
         meta        = action.get("meta", {}) or {}
 
-        # 1. READONLY blocks everything
+        # 1. READONLY blocks all irreversible actions without exception
         if regime == "READONLY":
             reason = f"regime=READONLY blocks all irreversible actions (type={action_type})"
             logger.warning(f"[TSR] BLOCKED — {reason} user={user_id}")
@@ -94,7 +110,7 @@ class TSR:
             logger.warning(f"[TSR] BLOCKED — {reason} user={user_id}")
             return False, reason
 
-        # 3. Balance check for withdrawals and trades (debit operations)
+        # 3. Balance check for debit operations (trade, withdraw)
         if action_type in ("withdraw", "trade") and self.balance_manager is not None and user_id:
             available = self.balance_manager.get_balance(user_id)
             if available is None:
@@ -102,18 +118,20 @@ class TSR:
                 logger.warning(f"[TSR] BLOCKED — {reason} user={user_id}")
                 return False, reason
 
-            # Account for worst-case fees before allowing execution
-            fee_rate  = float(meta.get("fee_rate", 0.001))    # default 0.1%
+            # Worst-case fees are accounted for BEFORE allowing execution
+            fee_rate   = float(meta.get("fee_rate", 0.001))
             total_cost = amount + (amount * fee_rate)
 
             if total_cost > available:
-                reason = (f"insufficient balance: need {total_cost:.6f} "
-                          f"(amount={amount} + fee={amount * fee_rate:.6f}), "
-                          f"available={available:.6f}")
+                reason = (
+                    f"insufficient balance: need {total_cost:.6f} "
+                    f"(amount={amount} + fee={amount * fee_rate:.6f}), "
+                    f"available={available:.6f}"
+                )
                 logger.warning(f"[TSR] BLOCKED — {reason} user={user_id}")
                 return False, reason
 
-        # 4. Minimum order size check for trades (skip if below; do NOT clamp)
+        # 4. Minimum order size for trades — skip (do NOT clamp), never execute below minimum
         if action_type == "trade":
             min_size = meta.get("min_order_size")
             if min_size is not None and amount < float(min_size):
@@ -127,21 +145,30 @@ class TSR:
 
     def commit(self, action: dict, execute_fn):
         """
-        Gate an irreversible action.
+        The only path through which irreversible actions may execute.
 
-        Parameters
-        ──────────
-        action      — dict describing the action (see validate)
-        execute_fn  — zero-argument callable that performs the real action
+        Flow
+        ────
+        1. validate(action) — raises TSRBlocked on failure
+        2. Set _tsr_ctx.active = True  (thread-local execution flag)
+        3. Call execute_fn()            (the irreversible operation)
+        4. Clear _tsr_ctx.active = False in finally (always)
+        5. Append to audit log
+        6. Return result
 
-        Returns the result of execute_fn() on success.
-        Raises TSRBlocked if validation fails.
+        The thread-local flag in step 2-4 is the runtime enforcement
+        mechanism.  BalanceManager._private methods check this flag at
+        entry and raise RuntimeError("TSR_BYPASS_DETECTED") if False.
         """
         ok, reason = self.validate(action)
         if not ok:
             raise TSRBlocked(reason, action)
 
-        result = execute_fn()
+        _tsr_ctx.active = True
+        try:
+            result = execute_fn()
+        finally:
+            _tsr_ctx.active = False
 
         with self._lock:
             self._audit.append({
@@ -153,8 +180,10 @@ class TSR:
             if len(self._audit) > 10_000:
                 self._audit = self._audit[-5_000:]
 
-        logger.info(f"[TSR] COMMITTED — {action.get('type')} "
-                    f"user={action.get('user_id')} amount={action.get('amount')}")
+        logger.info(
+            f"[TSR] COMMITTED — {action.get('type')} "
+            f"user={action.get('user_id')} amount={action.get('amount')}"
+        )
         return result
 
     # ── Audit log ─────────────────────────────────────────────────────────
