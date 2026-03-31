@@ -3,13 +3,17 @@ Structural Bias Detector — PRIM
 ================================
 
 Evaluates input imbalance BEFORE primitive extraction or pattern logic runs.
-Pure functions only. No side effects. No dependencies beyond stdlib.
+Pure functions only (except BiasHistory which holds a rolling window).
+No dependencies beyond stdlib.
 
-compute_bias()  — returns bias_score and components
-compute_gate()  — returns gate multiplier from bias_score
+compute_bias()            — returns bias_score and components
+compute_gate()            — returns gate multiplier from a single bias_score
+BiasHistory               — rolling window of N bias scores
+compute_persistent_gate() — gate based on sustained (rolling-mean) bias
 """
 
 import statistics
+from collections import deque
 
 
 def compute_bias(
@@ -79,3 +83,65 @@ def compute_gate(bias_score: float) -> float:
     if bias_score < 0.6:
         return 0.5
     return 0.1
+
+
+class BiasHistory:
+    """
+    Rolling window of bias scores.
+
+    Tracks the last N bias_score values so callers can detect sustained
+    distortion rather than reacting to isolated spikes.
+
+    Usage
+    ─────
+        history = BiasHistory(N=20)          # module-level singleton
+        history.append(bias_data["bias_score"])
+        gate = compute_persistent_gate(history.persistent_bias)
+    """
+
+    def __init__(self, N: int = 20):
+        if N < 1:
+            raise ValueError("N must be >= 1")
+        self._window: deque[float] = deque(maxlen=N)
+        self.N = N
+
+    def append(self, bias_score: float) -> None:
+        """Add the latest bias_score to the rolling window."""
+        self._window.append(bias_score)
+
+    @property
+    def persistent_bias(self) -> float:
+        """
+        Rolling mean of all scores collected so far.
+        Returns 0.0 when the window is empty.
+        """
+        if not self._window:
+            return 0.0
+        return sum(self._window) / len(self._window)
+
+    @property
+    def full(self) -> bool:
+        """True once N scores have been collected."""
+        return len(self._window) == self.N
+
+    def __len__(self) -> int:
+        return len(self._window)
+
+
+def compute_persistent_gate(persistent_bias: float) -> float:
+    """
+    Gate multiplier based on *sustained* bias (rolling mean).
+
+    A single high-bias tick is handled by compute_gate(); this function
+    acts only when distortion has persisted across multiple windows.
+
+    persistent_bias ≤ 0.6  → same thresholds as compute_gate()
+    persistent_bias > 0.6  → 0.0  (freeze — learning fully suspended)
+
+    The freeze threshold matches the screenshot spec:
+        if persistent_bias > 0.6:
+            # freeze or heavily damp learning
+    """
+    if persistent_bias > 0.6:
+        return 0.0          # freeze
+    return compute_gate(persistent_bias)
